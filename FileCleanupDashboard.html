@@ -1,0 +1,459 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>File Cleanup Review</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>
+  :root {
+    --bg:#faf9f6;--surface:#fff;--surface-2:#f3f2ee;--border:#e1e0d9;
+    --border-strong:#c9c7bd;--text-primary:#2b2a27;--text-secondary:#5c5a54;
+    --text-muted:#898781;--accent:#2a78d6;--accent-bg:#eaf2fb;
+    --success:#1baf7a;--success-bg:#e7f7f0;--warn:#b8860b;--warn-bg:#fdf3e0;
+    --danger:#c0392b;--danger-bg:#fbeae8;--radius:8px;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif;background:var(--bg);color:var(--text-primary);padding:2rem;line-height:1.5;}
+  .container{max-width:1100px;margin:0 auto;}
+  h1{font-size:22px;font-weight:700;margin-bottom:4px;}
+  .subtitle{color:var(--text-muted);font-size:14px;margin-bottom:1.5rem;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem 1.5rem;margin-bottom:1.25rem;}
+  h2{font-size:16px;font-weight:600;margin-bottom:1rem;}
+  h3{font-size:14px;font-weight:600;margin-bottom:.75rem;color:var(--text-secondary);}
+  .drop-zone{border:2px dashed var(--border-strong);border-radius:12px;padding:2.5rem;text-align:center;cursor:pointer;transition:background .15s,border-color .15s;user-select:none;}
+  .drop-zone:hover,.drop-zone.drag{background:var(--accent-bg);border-color:var(--accent);}
+  .drop-zone .icon{font-size:36px;display:block;margin-bottom:8px;}
+  .drop-zone .big{font-size:15px;font-weight:600;margin-bottom:4px;}
+  .drop-zone .small{font-size:12px;color:var(--text-muted);}
+  .btn{font-size:13px;padding:7px 16px;border-radius:var(--radius);border:1px solid var(--border-strong);background:transparent;cursor:pointer;color:var(--text-primary);font-weight:500;}
+  .btn:hover{background:var(--surface-2);}
+  .btn-accent{border-color:var(--accent);background:var(--accent);color:#fff;}
+  .btn-accent:hover{background:#1f5fa8;}
+  .btn-sm{font-size:12px;padding:4px 10px;}
+  .action-btn{font-size:12px;padding:4px 10px;border-radius:var(--radius);border:1px solid var(--border-strong);background:transparent;cursor:pointer;color:var(--text-primary);margin-right:3px;}
+  .action-btn.delete{border-color:var(--danger);color:var(--danger);}
+  .action-btn.delete:hover,.action-btn.active-delete{background:var(--danger-bg);font-weight:700;}
+  .action-btn.keep{border-color:var(--success);color:var(--success);}
+  .action-btn.keep:hover,.action-btn.active-keep{background:var(--success-bg);font-weight:700;}
+  .grid-4{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:1.25rem;}
+  .grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+  @media(max-width:700px){.grid-2{grid-template-columns:1fr;}}
+  .metric-card{background:var(--surface-2);border-radius:var(--radius);padding:1rem;}
+  .metric-label{font-size:11px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;}
+  .metric-value{font-size:26px;font-weight:700;}
+  .metric-sub{font-size:12px;color:var(--text-secondary);margin-top:2px;}
+  table{width:100%;font-size:13px;border-collapse:collapse;}
+  th{text-align:left;color:var(--text-muted);font-weight:600;padding:8px;border-bottom:1px solid var(--border);white-space:nowrap;}
+  td{padding:8px;border-bottom:1px solid var(--border);color:var(--text-secondary);vertical-align:middle;}
+  td:first-child{color:var(--text-primary);font-size:12px;max-width:340px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .badge{display:inline-block;font-size:11px;padding:2px 8px;border-radius:99px;font-weight:600;}
+  .badge-warn{background:var(--warn-bg);color:var(--warn);}
+  .badge-danger{background:var(--danger-bg);color:var(--danger);}
+  .badge-success{background:var(--success-bg);color:var(--success);}
+  .badge-neutral{background:var(--surface-2);color:var(--text-secondary);border:1px solid var(--border);}
+  .tabs{display:flex;gap:4px;border-bottom:1px solid var(--border);margin-bottom:1.25rem;}
+  .tab{font-size:14px;padding:10px 16px;cursor:pointer;color:var(--text-secondary);border-bottom:2px solid transparent;margin-bottom:-1px;font-weight:500;}
+  .tab.active{color:var(--accent);border-bottom-color:var(--accent);}
+  .tab:hover:not(.active){color:var(--text-primary);}
+  .filter-row{display:flex;gap:8px;margin-bottom:1rem;flex-wrap:wrap;align-items:center;}
+  .filter-row input,.filter-row select{font-size:13px;padding:6px 10px;height:34px;border:1px solid var(--border-strong);border-radius:var(--radius);background:var(--surface);color:var(--text-primary);}
+  .filter-row input{flex:1;min-width:160px;}
+  .submit-bar{background:var(--accent-bg);border:1px solid var(--accent);border-radius:12px;padding:1rem 1.25rem;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-top:1rem;}
+  .bar-chart{display:flex;align-items:flex-end;gap:10px;height:200px;padding-top:24px;}
+  .bar-col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;height:100%;min-width:0;}
+  .bar-fill{width:100%;max-width:50px;border-radius:4px 4px 0 0;position:relative;}
+  .bar-fill .bar-val{position:absolute;top:-20px;left:0;right:0;text-align:center;font-size:11px;font-weight:600;color:var(--text-secondary);white-space:nowrap;}
+  .bar-label{font-size:11px;color:var(--text-muted);margin-top:6px;text-align:center;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+  .or-divider{display:flex;align-items:center;gap:12px;color:var(--text-muted);font-size:13px;margin:1rem 0;}
+  .or-divider::before,.or-divider::after{content:'';flex:1;height:1px;background:var(--border);}
+  textarea{width:100%;font-size:12px;font-family:monospace;padding:8px;border:1px solid var(--border-strong);border-radius:var(--radius);resize:vertical;color:var(--text-primary);background:var(--surface);}
+  #status-msg{font-size:13px;color:var(--text-muted);margin-top:8px;min-height:20px;}
+  #dashboard-view{display:none;}
+  .footer-note{font-size:12px;color:var(--text-muted);text-align:center;margin-top:1.5rem;}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>File Cleanup Review</h1>
+  <div class="subtitle">Review your department's files and flag what can be removed. Nothing is deleted automatically.</div>
+
+  <div id="upload-view">
+    <div class="card">
+      <h3>Load your department CSV file</h3>
+      <p style="font-size:13px;color:var(--text-muted);margin-bottom:1rem;">Select or drag your CSV file (e.g. Finance.csv). Everything runs in your browser — nothing is uploaded anywhere.</p>
+
+      <!-- File picker button — most reliable method -->
+      <div style="margin-bottom:.5rem;">
+        <input type="file" id="csvInput" accept=".csv,.txt" style="display:none">
+        <button class="btn btn-accent" onclick="document.getElementById('csvInput').click()" style="font-size:15px;padding:10px 24px;">
+          📂 Click here to choose your CSV file
+        </button>
+        <span style="font-size:12px;color:var(--text-muted);margin-left:12px;">Works in Chrome, Edge, Firefox</span>
+      </div>
+
+      <!-- Drag and drop zone -->
+      <div class="drop-zone" id="dropzone" style="margin-top:1rem;">
+        <span class="icon">⬇</span>
+        <div class="big">Or drag and drop your CSV file here</div>
+        <div class="small">Drop the file anywhere in this box</div>
+      </div>
+
+      <div id="status-msg"></div>
+
+      <!-- Paste fallback -->
+      <div class="or-divider">or paste CSV text directly</div>
+      <p style="font-size:12px;color:var(--text-muted);margin-bottom:6px;">Open your CSV in Notepad, select all (Ctrl+A), copy (Ctrl+C), then paste below:</p>
+      <textarea id="pastebox" rows="6" placeholder="FullPath,SizeMB,LastAccessed&#10;\\server\Finance\Budget.xlsx,12.4,2022-01-15&#10;\\server\Finance\Report.pdf,45.2,2020-06-01"></textarea>
+      <button class="btn btn-accent" onclick="loadFromPaste()" style="margin-top:8px;">Load pasted data</button>
+    </div>
+  </div>
+
+  <div id="dashboard-view">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:1.25rem;flex-wrap:wrap;gap:8px;">
+      <div>
+        <h2 style="margin-bottom:2px;">Your file review</h2>
+        <span style="font-size:12px;color:var(--text-muted)" id="file-source-label"></span>
+      </div>
+      <button class="btn" onclick="resetDashboard()">↺ Load a different file</button>
+    </div>
+
+    <div class="grid-4" id="summary-cards"></div>
+
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('analyze',this)">Overview</div>
+      <div class="tab" onclick="switchTab('review',this)">Review files</div>
+      <div class="tab" onclick="switchTab('decisions',this)">My decisions <span id="dec-badge" style="display:none;font-size:11px;padding:1px 7px;border-radius:99px;background:var(--accent-bg);color:var(--accent);margin-left:4px;font-weight:700;">0</span></div>
+    </div>
+
+    <div id="tab-analyze">
+      <div class="grid-2">
+        <div class="card"><h3>Storage by top folder</h3><div class="bar-chart" id="folderChart"></div></div>
+        <div class="card"><h3>Files by age (last accessed)</h3><div class="bar-chart" id="ageChart"></div></div>
+      </div>
+      <div class="card">
+        <h3>Largest files <span class="badge badge-danger" style="margin-left:6px;">top 20</span></h3>
+        <div style="overflow-x:auto;"><table><thead><tr><th>Path</th><th>Size</th><th>Last Accessed</th><th>Age</th></tr></thead><tbody id="largest-body"></tbody></table></div>
+      </div>
+    </div>
+
+    <div id="tab-review" style="display:none;">
+      <div class="card">
+        <div class="filter-row">
+          <input type="text" id="search-filter" placeholder="Search path..." oninput="applyFilters()">
+          <select id="folder-filter" onchange="applyFilters()"><option value="">All folders</option></select>
+          <select id="age-filter" onchange="applyFilters()">
+            <option value="">All ages</option>
+            <option value="0">Under 1 year</option>
+            <option value="1">1–2 years</option>
+            <option value="2">2–3 years</option>
+            <option value="3">3+ years</option>
+          </select>
+          <select id="size-filter" onchange="applyFilters()">
+            <option value="">All sizes</option>
+            <option value="large">Large 100MB+</option>
+            <option value="medium">Medium 10–100MB</option>
+            <option value="small">Small under 10MB</option>
+          </select>
+          <select id="dec-filter" onchange="applyFilters()">
+            <option value="">All</option>
+            <option value="delete">Marked delete</option>
+            <option value="keep">Marked keep</option>
+            <option value="undecided">Undecided</option>
+          </select>
+        </div>
+        <div style="overflow-x:auto;"><table><thead><tr><th>Path</th><th>Size</th><th>Last Accessed</th><th style="text-align:center;">Decision</th></tr></thead><tbody id="review-body"></tbody></table></div>
+        <div id="pagination" style="display:flex;justify-content:space-between;align-items:center;margin-top:12px;font-size:13px;color:var(--text-muted);"></div>
+      </div>
+      <div id="submit-section"></div>
+    </div>
+
+    <div id="tab-decisions" style="display:none;">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1rem;flex-wrap:wrap;gap:8px;">
+          <h3 style="margin:0;">My decisions</h3>
+          <button class="btn btn-accent" onclick="exportDecisions()">⬇ Export decisions CSV</button>
+        </div>
+        <div id="dec-summary" style="margin-bottom:1rem;"></div>
+        <div id="dec-list"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer-note">This tool runs entirely in your browser. No data is sent anywhere. When finished, export your decisions and send that CSV back.</div>
+</div>
+
+<script>
+var allFiles=[], filteredFiles=[], decisions={}, currentPage=0;
+var PAGE_SIZE=50, NOW=new Date();
+
+function parseCSV(text){
+  var lines=text.replace(/\r/g,'').trim().split('\n');
+  if(lines.length<2) return [];
+  var headers=lines[0].split(',').map(function(h){return h.trim().replace(/^"|"$/g,'');});
+  var fpIdx=0,szIdx=-1,dtIdx=-1;
+  for(var i=0;i<headers.length;i++){
+    if(/fullpath|path|name|file/i.test(headers[i])) fpIdx=i;
+    if(/size/i.test(headers[i])) szIdx=i;
+    if(/access|date|modified|time/i.test(headers[i])) dtIdx=i;
+  }
+  var isKB=szIdx>=0&&/kb/i.test(headers[szIdx]);
+  var files=[];
+  for(var i=1;i<lines.length;i++){
+    if(!lines[i]) continue;
+    var row=lines[i].split(',').map(function(c){return c.trim().replace(/^"|"$/g,'');});
+    if(!row[fpIdx]) continue;
+    var sz=szIdx>=0?parseFloat(row[szIdx]):0;
+    if(isNaN(sz)) sz=0;
+    if(isKB) sz=sz/1024;
+    var dt=dtIdx>=0&&row[dtIdx]?new Date(row[dtIdx]):null;
+    files.push({path:row[fpIdx],sizeMB:sz,lastAccessed:(dt&&!isNaN(dt))?dt:null});
+  }
+  return files;
+}
+
+function getTopFolder(path){
+  var parts=path.replace(/\\/g,'/').split('/').filter(Boolean);
+  return parts.length>1?parts[1]:(parts[0]||'Unknown');
+}
+function getAgeYears(dt){
+  if(!dt||isNaN(dt)) return null;
+  return (NOW-dt)/(1000*60*60*24*365);
+}
+function ageBadge(dt){
+  var y=getAgeYears(dt);
+  if(y===null) return '<span class="badge badge-neutral">Unknown</span>';
+  if(y<1) return '<span class="badge badge-success">&lt;1yr</span>';
+  if(y<2) return '<span class="badge badge-warn">1-2yr</span>';
+  if(y<3) return '<span class="badge badge-warn">2-3yr</span>';
+  return '<span class="badge badge-danger">3+yr</span>';
+}
+function fmt(mb){ return mb>=1024?(mb/1024).toFixed(1)+' GB':mb.toFixed(1)+' MB'; }
+function fmtDate(dt){ return(!dt||isNaN(dt))?'—':dt.toISOString().slice(0,10); }
+
+function buildSummary(){
+  var totalMB=allFiles.reduce(function(s,f){return s+f.sizeMB;},0);
+  var stale=allFiles.filter(function(f){var y=getAgeYears(f.lastAccessed);return y!==null&&y>=2;});
+  var staleMB=stale.reduce(function(s,f){return s+f.sizeMB;},0);
+  document.getElementById('summary-cards').innerHTML=
+    '<div class="metric-card"><div class="metric-label">Total files</div><div class="metric-value">'+allFiles.length.toLocaleString()+'</div></div>'+
+    '<div class="metric-card"><div class="metric-label">Total size</div><div class="metric-value">'+fmt(totalMB)+'</div></div>'+
+    '<div class="metric-card"><div class="metric-label">Stale 2yr+</div><div class="metric-value">'+stale.length.toLocaleString()+'</div><div class="metric-sub">'+fmt(staleMB)+' recoverable</div></div>'+
+    '<div class="metric-card"><div class="metric-label">Avg file size</div><div class="metric-value">'+(allFiles.length?fmt(totalMB/allFiles.length):'—')+'</div></div>';
+}
+
+function buildCharts(){
+  var folderMap={};
+  allFiles.forEach(function(f){var k=getTopFolder(f.path);folderMap[k]=(folderMap[k]||0)+f.sizeMB;});
+  var topF=Object.entries(folderMap).sort(function(a,b){return b[1]-a[1];}).slice(0,8);
+  var maxF=Math.max.apply(null,topF.map(function(x){return x[1];}));
+  document.getElementById('folderChart').innerHTML=topF.map(function(x){
+    var pct=Math.max((x[1]/maxF)*100,3);
+    return '<div class="bar-col"><div class="bar-fill" style="height:'+pct+'%;background:#2a78d6;"><span class="bar-val">'+fmt(x[1])+'</span></div><div class="bar-label" title="'+x[0]+'">'+x[0]+'</div></div>';
+  }).join('');
+
+  var buckets=[0,0,0,0];
+  allFiles.forEach(function(f){
+    var y=getAgeYears(f.lastAccessed);
+    if(y===null) return;
+    if(y<1) buckets[0]++; else if(y<2) buckets[1]++; else if(y<3) buckets[2]++; else buckets[3]++;
+  });
+  var labels=['< 1yr','1-2yr','2-3yr','3+yr'];
+  var colors=['#1baf7a','#b8860b','#c0392b','#7b1f15'];
+  var maxB=Math.max.apply(null,buckets)||1;
+  document.getElementById('ageChart').innerHTML=buckets.map(function(c,i){
+    var pct=Math.max((c/maxB)*100,c>0?3:0);
+    return '<div class="bar-col"><div class="bar-fill" style="height:'+pct+'%;background:'+colors[i]+';"><span class="bar-val">'+c.toLocaleString()+'</span></div><div class="bar-label">'+labels[i]+'</div></div>';
+  }).join('');
+}
+
+function buildLargest(){
+  var top=allFiles.slice().sort(function(a,b){return b.sizeMB-a.sizeMB;}).slice(0,20);
+  document.getElementById('largest-body').innerHTML=top.map(function(f){
+    return '<tr><td title="'+f.path+'">'+f.path+'</td><td style="white-space:nowrap;color:var(--text-primary)">'+fmt(f.sizeMB)+'</td><td>'+fmtDate(f.lastAccessed)+'</td><td>'+ageBadge(f.lastAccessed)+'</td></tr>';
+  }).join('');
+}
+
+function buildFolderFilter(){
+  var folders=[...new Set(allFiles.map(function(f){return getTopFolder(f.path);}))].sort();
+  document.getElementById('folder-filter').innerHTML='<option value="">All folders</option>'+folders.map(function(f){return '<option value="'+f+'">'+f+'</option>';}).join('');
+}
+
+function applyFilters(){
+  var search=document.getElementById('search-filter').value.toLowerCase();
+  var folder=document.getElementById('folder-filter').value;
+  var age=document.getElementById('age-filter').value;
+  var size=document.getElementById('size-filter').value;
+  var dec=document.getElementById('dec-filter').value;
+  filteredFiles=allFiles.filter(function(f){
+    if(search&&!f.path.toLowerCase().includes(search)) return false;
+    if(folder&&getTopFolder(f.path)!==folder) return false;
+    if(age!==''){
+      var y=getAgeYears(f.lastAccessed);
+      if(age==='0'&&!(y!==null&&y<1)) return false;
+      if(age==='1'&&!(y!==null&&y>=1&&y<2)) return false;
+      if(age==='2'&&!(y!==null&&y>=2&&y<3)) return false;
+      if(age==='3'&&!(y!==null&&y>=3)) return false;
+    }
+    if(size==='large'&&f.sizeMB<100) return false;
+    if(size==='medium'&&(f.sizeMB<10||f.sizeMB>=100)) return false;
+    if(size==='small'&&f.sizeMB>=10) return false;
+    if(dec==='delete'&&decisions[f.path]!=='delete') return false;
+    if(dec==='keep'&&decisions[f.path]!=='keep') return false;
+    if(dec==='undecided'&&decisions[f.path]) return false;
+    return true;
+  });
+  currentPage=0;
+  renderTable();
+  renderSubmitBar();
+}
+
+function renderTable(){
+  var start=currentPage*PAGE_SIZE;
+  var page=filteredFiles.slice(start,start+PAGE_SIZE);
+  var tbody=document.getElementById('review-body');
+  if(!page.length){tbody.innerHTML='<tr><td colspan="4" style="text-align:center;padding:2rem;color:var(--text-muted)">No files match</td></tr>';return;}
+  tbody.innerHTML=page.map(function(f){
+    var d=decisions[f.path];
+    var safePath=f.path.replace(/'/g,"\\'");
+    return '<tr><td title="'+f.path+'">'+f.path+'</td><td style="white-space:nowrap">'+fmt(f.sizeMB)+'</td><td>'+fmtDate(f.lastAccessed)+'</td>'+
+      '<td style="text-align:center;white-space:nowrap">'+
+      '<button class="action-btn delete'+(d==='delete'?' active-delete':'')+'" onclick="setDecision(\''+safePath+'\',\'delete\')">Delete</button>'+
+      '<button class="action-btn keep'+(d==='keep'?' active-keep':'')+'" onclick="setDecision(\''+safePath+'\',\'keep\')">Keep</button>'+
+      '</td></tr>';
+  }).join('');
+  var total=filteredFiles.length, pages=Math.ceil(total/PAGE_SIZE);
+  document.getElementById('pagination').innerHTML=total>PAGE_SIZE?
+    '<span>'+(start+1).toLocaleString()+'–'+Math.min(start+PAGE_SIZE,total).toLocaleString()+' of '+total.toLocaleString()+'</span>'+
+    '<div style="display:flex;gap:6px"><button class="btn btn-sm" onclick="changePage(-1)"'+(currentPage===0?' disabled':'')+'>← Prev</button>'+
+    '<button class="btn btn-sm" onclick="changePage(1)"'+(currentPage>=pages-1?' disabled':'')+'>Next →</button></div>':
+    '<span>'+total.toLocaleString()+' files</span>';
+}
+
+function changePage(d){currentPage+=d;renderTable();}
+
+function setDecision(path,action){
+  if(decisions[path]===action) delete decisions[path]; else decisions[path]=action;
+  updateBadge(); applyFilters();
+}
+function updateBadge(){
+  var c=Object.keys(decisions).length;
+  var b=document.getElementById('dec-badge');
+  b.textContent=c; b.style.display=c>0?'':'none';
+}
+function renderSubmitBar(){
+  var dels=Object.values(decisions).filter(function(d){return d==='delete';}).length;
+  var keeps=Object.values(decisions).filter(function(d){return d==='keep';}).length;
+  var total=Object.keys(decisions).length;
+  var s=document.getElementById('submit-section');
+  if(!total){s.innerHTML='';return;}
+  var delMB=allFiles.filter(function(f){return decisions[f.path]==='delete';}).reduce(function(s,f){return s+f.sizeMB;},0);
+  s.innerHTML='<div class="submit-bar"><div><div style="font-size:14px;color:var(--accent);font-weight:600;">'+total+' decisions — '+dels+' delete | '+keeps+' keep</div>'+
+    '<div style="font-size:12px;color:var(--accent);margin-top:2px;">'+fmt(delMB)+' flagged for removal</div></div>'+
+    '<button class="btn btn-accent" onclick="switchTab(\'decisions\',document.querySelectorAll(\'.tab\')[2])">View &amp; export →</button></div>';
+}
+function renderDecisions(){
+  var dels=allFiles.filter(function(f){return decisions[f.path]==='delete';});
+  var keeps=allFiles.filter(function(f){return decisions[f.path]==='keep';});
+  var delMB=dels.reduce(function(s,f){return s+f.sizeMB;},0);
+  document.getElementById('dec-summary').innerHTML=
+    '<div class="grid-4">'+
+    '<div class="metric-card"><div class="metric-label">Delete</div><div class="metric-value" style="color:var(--danger)">'+dels.length.toLocaleString()+'</div><div class="metric-sub">'+fmt(delMB)+' to recover</div></div>'+
+    '<div class="metric-card"><div class="metric-label">Keep</div><div class="metric-value" style="color:var(--success)">'+keeps.length.toLocaleString()+'</div></div>'+
+    '<div class="metric-card"><div class="metric-label">Undecided</div><div class="metric-value">'+(allFiles.length-dels.length-keeps.length).toLocaleString()+'</div></div>'+
+    '</div>';
+  var list=[].concat(dels.map(function(f){return Object.assign({},f,{dec:'delete'});}),keeps.map(function(f){return Object.assign({},f,{dec:'keep'});}));
+  document.getElementById('dec-list').innerHTML=list.length===0?
+    '<div style="color:var(--text-muted);padding:1rem 0;">No decisions yet. Go to Review files tab to start marking.</div>':
+    list.slice(0,200).map(function(f){
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:7px 0;border-bottom:1px solid var(--border);font-size:13px;gap:12px;">'+
+        '<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+f.path+'">'+f.path+'</span>'+
+        '<div style="display:flex;align-items:center;gap:10px;flex-shrink:0;"><span style="font-size:12px;color:var(--text-muted);">'+fmt(f.sizeMB)+'</span>'+
+        '<span class="badge '+(f.dec==='delete'?'badge-danger':'badge-success')+'">'+f.dec+'</span></div></div>';
+    }).join('')+(list.length>200?'<div style="font-size:12px;color:var(--text-muted);padding:8px 0;">…and '+(list.length-200)+' more. Export CSV to see all.</div>':'');
+}
+
+function exportDecisions(){
+  var rows=[['FullPath','SizeMB','LastAccessed','Decision']];
+  allFiles.forEach(function(f){if(decisions[f.path]) rows.push(['"'+f.path+'"',f.sizeMB.toFixed(2),fmtDate(f.lastAccessed),decisions[f.path]]);});
+  if(rows.length===1){alert('No decisions yet. Mark some files first.');return;}
+  var csv=rows.map(function(r){return r.join(',');}).join('\n');
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download='cleanup_decisions.csv'; a.click();
+}
+
+function switchTab(name,el){
+  document.querySelectorAll('.tab').forEach(function(t){t.classList.remove('active');});
+  el.classList.add('active');
+  ['analyze','review','decisions'].forEach(function(t){document.getElementById('tab-'+t).style.display=t===name?'':'none';});
+  if(name==='decisions') renderDecisions();
+}
+
+function loadFiles(files){
+  if(!files||!files.length){setStatus('No data found. Check your CSV has FullPath, SizeMB, LastAccessed columns.');return;}
+  allFiles=files; filteredFiles=files.slice();
+  document.getElementById('upload-view').style.display='none';
+  document.getElementById('dashboard-view').style.display='';
+  buildSummary(); buildFolderFilter(); applyFilters();
+  setTimeout(function(){buildCharts();buildLargest();},50);
+}
+
+function resetDashboard(){
+  allFiles=[];filteredFiles=[];decisions={};
+  document.getElementById('upload-view').style.display='';
+  document.getElementById('dashboard-view').style.display='none';
+  document.getElementById('csvInput').value='';
+  setStatus('');
+}
+
+function setStatus(msg){document.getElementById('status-msg').textContent=msg;}
+
+function loadFromPaste(){
+  var text=document.getElementById('pastebox').value.trim();
+  if(!text){alert('Please paste some CSV data first.');return;}
+  setStatus('Parsing pasted data...');
+  setTimeout(function(){
+    var f=parseCSV(text);
+    if(!f.length){setStatus('Could not parse — make sure first row has column headers.');return;}
+    setStatus('Loaded '+f.length+' files from pasted data.');
+    loadFiles(f);
+  },30);
+}
+
+// File input via button click
+document.getElementById('csvInput').addEventListener('change',function(e){
+  var file=e.target.files[0]; if(!file) return;
+  setStatus('Reading '+file.name+' ('+( file.size/1024/1024).toFixed(1)+' MB)...');
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    setStatus('Parsing...');
+    setTimeout(function(){
+      var f=parseCSV(ev.target.result);
+      setStatus('');
+      loadFiles(f);
+    },30);
+  };
+  reader.onerror=function(){setStatus('Error reading file. Try the paste option below.');};
+  reader.readAsText(file);
+});
+
+// Drag and drop
+var dz=document.getElementById('dropzone');
+dz.addEventListener('dragover',function(e){e.preventDefault();dz.classList.add('drag');});
+dz.addEventListener('dragleave',function(){dz.classList.remove('drag');});
+dz.addEventListener('drop',function(e){
+  e.preventDefault();dz.classList.remove('drag');
+  var f=e.dataTransfer.files[0];
+  if(!f){return;}
+  setStatus('Reading '+f.name+'...');
+  var reader=new FileReader();
+  reader.onload=function(ev){
+    setStatus('Parsing...');
+    setTimeout(function(){loadFiles(parseCSV(ev.target.result));setStatus('');},30);
+  };
+  reader.onerror=function(){setStatus('Drop failed. Try the Click to choose button or paste option.');};
+  reader.readAsText(f);
+});
+</script>
+</body>
+</html>
